@@ -17,8 +17,10 @@
 @interface OpenCVDetect : NSObject<AVCaptureVideoDataOutputSampleBufferDelegate>
 {
     NSArray                 *devices;
-    AVCaptureDevice         *device;
+    AVCaptureDevice         *selectedDevice;
     AVCaptureSession        *session;
+    
+    NSImage                 *selectedImage;
     
     NSView                  *intputView;
     NSImageView             *outputView;
@@ -69,9 +71,11 @@
     NSButton                *colorThresholdingCheck;
     NSButton                *noiseReductionCheck;
     NSButton                *targetOnlyCheck;
+    
+    BOOL                    isProcessing;
 }
 
-@property (nonatomic, strong ) IBOutlet NSView *inputView;
+@property (nonatomic, strong ) IBOutlet NSImageView *inputView;
 @property (nonatomic, strong ) IBOutlet NSImageView *outputView;
 @property (nonatomic, strong ) IBOutlet NSButton *startButton;
 @property (nonatomic, strong ) IBOutlet NSPopUpButton *deviceSelect;
