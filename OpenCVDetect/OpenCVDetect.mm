@@ -65,7 +65,7 @@
 {
     self = [super init];
     
-    if (self )
+    if ( self )
     {
         devices = [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo];
         
@@ -95,7 +95,7 @@
 
 - (void)awakeFromNib
 {
-    device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+    selectedDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
     
     [deviceSelect removeAllItems];
     [deviceSelect setEnabled:YES];
@@ -103,18 +103,24 @@
     [formatSelect removeAllItems];
     [formatSelect setEnabled:NO];
     
-    for( AVCaptureDevice *d in devices)
+    for( AVCaptureDevice *d in devices )
     {
         NSString *title = [d localizedName];
         [deviceSelect addItemWithTitle:title];
         NSMenuItem *item = [deviceSelect itemWithTitle:title];
         [item setRepresentedObject:d];
-        if (d == device)
+        if (d == selectedDevice)
         {
             [deviceSelect selectItem:item];
-            [self deviceSelected:deviceSelect];
+            [self sourceSelected:deviceSelect];
         }
     }
+    
+    // add file selection
+    NSString *title = @"File...";
+    [deviceSelect addItemWithTitle:title];
+    NSMenuItem *item = [deviceSelect itemWithTitle:title];
+    [item setRepresentedObject: [NSOpenPanel openPanel]];
     
     [satMinSlider setMinValue:0];
     [satMinSlider setMaxValue:255];
@@ -166,7 +172,7 @@
 //
 //----------------------------------------
 
--(void) processMat
+-(void)processMat
 {
     cv::vector<cv::vector<cv::Point> > contours;
     cv::vector<cv::Vec4i> heirarchy;
@@ -179,43 +185,45 @@
     NSTimeInterval start = CACurrentMediaTime();
     NSTimeInterval delta = (start - lastProcessTime);
     
-    cv::cvtColor(currentMat, currentMat, CV_BGR2RGB);
+    cv::Mat matToProcess(currentMat);
+    cv::cvtColor(currentMat, matToProcess, CV_BGR2RGB);
     
     processHz = delta != 0 ? 1.0 / delta : 0 ;
     lastProcessTime = start;
 
     // update input info
-    [inputLabel setStringValue:[NSString stringWithFormat:@"%d x %d @ %.02f", currentMat.cols, currentMat.rows, captureHz]];
+    [inputLabel setStringValue:[NSString stringWithFormat:@"%d x %d @ %.02f", matToProcess.cols, matToProcess.rows, captureHz]];
     
 
+    
     // start processing input
-    cv::Mat frame = currentMat;
+
     
     // reduce input size if requested
     if( enableInputScaling && scaleInputValue < 1.0 && scaleInputValue > 0.0)
     {
-        cv::resize( frame, frame, cv::Size(), scaleInputValue, scaleInputValue, cv::INTER_NEAREST);
+        cv::resize( matToProcess, matToProcess, cv::Size(), scaleInputValue, scaleInputValue, cv::INTER_NEAREST);
     }
     
-    float minDim = (float)(frame.rows > frame.cols ? frame.cols : frame.rows);
+    float minDim = (float)(matToProcess.rows > matToProcess.cols ? matToProcess.cols : matToProcess.rows);
     float minTargetRadius = minDim * cullRadiusRatio;
 
     // do color thresholding if enabled
     if (enableColorThresholding)
     {
-        cv::cvtColor(frame, frame, CV_RGB2HSV);
-        cv::inRange(frame, cv::Scalar(hueMin, satMinValue, volMinValue), cv::Scalar(hueMax, satMaxValue, volMaxValue), frame);
+        cv::cvtColor(matToProcess, matToProcess, CV_RGB2HSV);
+        cv::inRange(matToProcess, cv::Scalar(hueMin, satMinValue, volMinValue), cv::Scalar(hueMax, satMaxValue, volMaxValue), matToProcess);
         
         // apply noise reduction if needed
         if( enableNoiseReduction)
         {
             cv::Mat str_el = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-            morphologyEx(frame, frame, cv::MORPH_OPEN, str_el);
-            morphologyEx(frame, frame, cv::MORPH_CLOSE, str_el);
+            morphologyEx(matToProcess, matToProcess, cv::MORPH_OPEN, str_el);
+            morphologyEx(matToProcess, matToProcess, cv::MORPH_CLOSE, str_el);
         }
         
         
-        cv::findContours( frame.clone(), contours, heirarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE);
+        cv::findContours( matToProcess.clone(), contours, heirarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE);
         
         size_t count = contours.size();
         
@@ -238,17 +246,17 @@
     // calc and update output stats
     double end = CACurrentMediaTime();
     delta = end - start;
-    [outputLabel setStringValue:[NSString stringWithFormat:@"%d x %d @ %.02f (%.04f ms)", frame.cols, frame.rows, processHz, delta*1000]];
+    [outputLabel setStringValue:[NSString stringWithFormat:@"%d x %d @ %.02f (%.04f ms)", matToProcess.cols, matToProcess.rows, processHz, delta*1000]];
 
     // display output
     if( enableColorThresholding)
     {
         if (enableTargetsOnly)
         {
-            frame =  cv::Scalar(0);
+            matToProcess =  cv::Scalar(0);
         }
         // convert threshold back to image so we can display it
-        cvtColor( frame, frame, CV_GRAY2RGBA);
+        cvtColor( matToProcess, matToProcess, CV_GRAY2RGBA);
         
         // draw all the bounding circles
         
@@ -256,11 +264,11 @@
         
         for( int i = 0; i < count; i++)
         {
-            cv::circle(frame, center[i], radius[i], cv::Scalar(255,0,0), 3);
+            cv::circle(matToProcess, center[i], radius[i], cv::Scalar(255,0,0), 3);
         }
     }
     
-    [outputView setImage:[NSImage imageWithCVMat:frame]];
+    [outputView setImage:[NSImage imageWithCVMat:matToProcess]];
     
     processingMat = NO;
 }
@@ -269,64 +277,95 @@
 //
 //----------------------------------------
 
--(void) stopRecording
+-(void)stopRecording
 {
     if (session)
     {
         [session stopRunning];
         session = nil;
     }
+    
+    if (isProcessing)
+    {
+        isProcessing = NO;
+    }
+    
     [startButton setTitle:@"Start"];
     [deviceSelect setEnabled:YES];
-    [self deviceSelected:deviceSelect];
+    [formatSelect setEnabled:YES];
+    
+    [inputView setImage: selectedImage];
+    [outputView setImage:nil];
 }
 
 //----------------------------------------
 //
 //----------------------------------------
 
--(BOOL) startRecording
+-(BOOL)startRecording
 {
     [self stopRecording];
     
-    [device lockForConfiguration:nil];
-    session = [[AVCaptureSession alloc] init];
-    [startButton setTitle:@"Stop"];
-    [deviceSelect setEnabled:NO];
-    [formatSelect setEnabled:NO];
-    
-    if ( inputView )
+    if( selectedDevice )
     {
+        [selectedDevice lockForConfiguration:nil];
+        session = [[AVCaptureSession alloc] init];
         
-        AVCaptureVideoPreviewLayer *captureVideoPreviewLayer = [[AVCaptureVideoPreviewLayer alloc] initWithSession:session];
-        [inputView setLayer:captureVideoPreviewLayer];
-        [inputView setWantsLayer:YES];
+        [startButton setTitle:@"Stop"];
+        [deviceSelect setEnabled:NO];
+        [formatSelect setEnabled:NO];
+        
+        if ( inputView )
+        {
+            
+            AVCaptureVideoPreviewLayer *captureVideoPreviewLayer = [[AVCaptureVideoPreviewLayer alloc] initWithSession:session];
+            [inputView setLayer:captureVideoPreviewLayer];
+            [inputView setWantsLayer:YES];
+        }
+        
+        NSError *error = nil;
+        AVCaptureDeviceInput *input = [AVCaptureDeviceInput deviceInputWithDevice:selectedDevice error:&error];
+        if (input)
+        {
+            
+            [session addInput:input];
+            
+            AVCaptureVideoDataOutput *output = [[AVCaptureVideoDataOutput alloc] init];
+            [session addOutput:output];
+            
+            output.videoSettings = @{ (NSString *)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_32BGRA) };
+            
+            dispatch_queue_t queue = dispatch_queue_create("MyQueue", NULL);
+            [output setSampleBufferDelegate:self queue:queue];
+            lastCaptureTime = CACurrentMediaTime();
+            lastProcessTime = lastCaptureTime;
+            [session startRunning];
+            [selectedDevice unlockForConfiguration];
+            
+            isProcessing = YES;
+            
+            return YES;
+        }
+        
+        [self stopRecording];
     }
-    
-    
-    NSError *error = nil;
-    AVCaptureDeviceInput *input = [AVCaptureDeviceInput deviceInputWithDevice:device error:&error];
-    if (input)
+    else if( selectedImage )
     {
-    
-        [session addInput:input];
-    
-        AVCaptureVideoDataOutput *output = [[AVCaptureVideoDataOutput alloc] init];
-        [session addOutput:output];
-    
-        output.videoSettings = @{ (NSString *)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_32BGRA) };
-    
-        dispatch_queue_t queue = dispatch_queue_create("MyQueue", NULL);
-        [output setSampleBufferDelegate:self queue:queue];
-        lastCaptureTime = CACurrentMediaTime();
-        lastProcessTime = lastCaptureTime;
-        [session startRunning];
-        [device unlockForConfiguration];
+
+        [startButton setTitle:@"Stop"];
+        [deviceSelect setEnabled:NO];
+        [formatSelect setEnabled:NO];
+        
+        [inputView setImage:selectedImage];
+        
+        currentMat = [selectedImage CVMat];
+        [self processMat];
+        
+        isProcessing = YES;
         
         return YES;
     }
-
-    [self stopRecording];
+    
     return NO;
 }
 
@@ -334,9 +373,9 @@
 //
 //----------------------------------------
 
--(IBAction) toggleRecording:(id)sender
+-(IBAction)toggleRecording:(id)sender
 {
-    if( session )
+    if( isProcessing )
     {
         [self stopRecording];
     }
@@ -394,7 +433,7 @@
 //
 //----------------------------------------
 
--(void) updateHueControls
+-(void)updateHueControls
 {
     [colorWell setColor:[NSColor colorWithHue:((CGFloat)hueValue)/360.0f saturation:1 brightness:.5 alpha:1]];
     [colorSlider setIntValue:hueValue];
@@ -412,6 +451,12 @@
     // for OpenCV the values are actually halved
     hueMin /= 2;
     hueMax /= 2;
+    
+    
+    if( selectedImage && isProcessing )
+    {
+        [self processMat];
+    }
 }
 
 //----------------------------------------
@@ -421,6 +466,11 @@
 -(IBAction)colorThresholdingChanged:(id)sender
 {
     enableColorThresholding = [colorThresholdingCheck state];
+    
+    if( selectedImage && isProcessing )
+    {
+        [self processMat];
+    }
 }
 
 //----------------------------------------
@@ -430,6 +480,11 @@
 -(IBAction)nosieReductionChanged:(id)sender
 {
     enableNoiseReduction = [noiseReductionCheck state];
+    
+    if( selectedImage && isProcessing )
+    {
+        [self processMat];
+    }
 }
 
 //----------------------------------------
@@ -439,6 +494,11 @@
 -(IBAction)targetsOnlyChanged:(id)sender
 {
     enableTargetsOnly = [targetsOnlyCheck state];
+    
+    if( selectedImage && isProcessing )
+    {
+        [self processMat];
+    }
 }
 
 //----------------------------------------
@@ -448,10 +508,10 @@
 -(IBAction)autoWBChanged:(id)sender
 {
     
-    if( [device lockForConfiguration:nil])
+    if( [selectedDevice lockForConfiguration:nil])
     {
-        device.whiteBalanceMode = [autoWBCheck state] ?  AVCaptureWhiteBalanceModeContinuousAutoWhiteBalance : AVCaptureWhiteBalanceModeLocked ;
-        [device unlockForConfiguration];
+        selectedDevice.whiteBalanceMode = [autoWBCheck state] ?  AVCaptureWhiteBalanceModeContinuousAutoWhiteBalance : AVCaptureWhiteBalanceModeLocked ;
+        [selectedDevice unlockForConfiguration];
     }
 }
 
@@ -470,6 +530,11 @@
 -(IBAction)scaleInputButtonChanged:(id)sender
 {
     enableInputScaling = [scaleInputCheck state];
+    
+    if( selectedImage && isProcessing )
+    {
+        [self processMat];
+    }
 }
 
 //----------------------------------------
@@ -481,6 +546,11 @@
     int val = [scaleInputSlider intValue];
     scaleInputValue = ((float)val)/100.0f;
     [scaleInputLabel setStringValue:[NSString stringWithFormat:@"%d %%", val]];
+    
+    if( selectedImage && isProcessing )
+    {
+        [self processMat];
+    }
 }
 
 //----------------------------------------
@@ -490,6 +560,11 @@
 -(IBAction)cullRadiusButtonChanged:(id)sender
 {
     enableRadiusCulling = [cullRadiusCheck state];
+    
+    if( selectedImage && isProcessing )
+    {
+        [self processMat];
+    }
 }
 
 //----------------------------------------
@@ -501,6 +576,11 @@
     int val = [cullRadiusSlider intValue];
     cullRadiusRatio = ((float)val)/100.0f;
     [cullRadiusLabel setStringValue:[NSString stringWithFormat:@"%d %%", val]];
+    
+    if( selectedImage && isProcessing )
+    {
+        [self processMat];
+    }
 }
 
 //----------------------------------------
@@ -550,6 +630,11 @@
     }
     
     [satMinLabel setStringValue:[NSString stringWithFormat:@"%d", satMinValue]];
+    
+    if( selectedImage && isProcessing )
+    {
+        [self processMat];
+    }
 }
 
 //----------------------------------------
@@ -566,6 +651,11 @@
         [satMinLabel setStringValue:[NSString stringWithFormat:@"%d", satMaxValue]];
     }
     [satMaxLabel setStringValue:[NSString stringWithFormat:@"%d", satMaxValue]];
+    
+    if( selectedImage && isProcessing )
+    {
+        [self processMat];
+    }
 }
 
 //----------------------------------------
@@ -583,6 +673,11 @@
     }
     
     [volMinLabel setStringValue:[NSString stringWithFormat:@"%d", volMinValue]];
+    
+    if( selectedImage && isProcessing )
+    {
+        [self processMat];
+    }
 }
 
 //----------------------------------------
@@ -599,6 +694,11 @@
         [volMinLabel setStringValue:[NSString stringWithFormat:@"%d", volMaxValue]];
     }
     [volMaxLabel setStringValue:[NSString stringWithFormat:@"%d", volMaxValue]];
+    
+    if( selectedImage && isProcessing )
+    {
+        [self processMat];
+    }
 }
 
 //----------------------------------------
@@ -608,10 +708,15 @@
 -(IBAction)formatSelected:(id)sender
 {
     NSMenuItem *fitem = [formatSelect selectedItem];
-    if( [device lockForConfiguration:nil])
+    if( [selectedDevice lockForConfiguration:nil])
     {
-        device.activeFormat = fitem.representedObject;
-        [device unlockForConfiguration];
+        selectedDevice.activeFormat = fitem.representedObject;
+        [selectedDevice unlockForConfiguration];
+    }
+    
+    if( selectedImage && isProcessing )
+    {
+        [self processMat];
     }
 }
 
@@ -619,49 +724,75 @@
 //
 //----------------------------------------
 
--(IBAction)deviceSelected:(id)sender
+-(IBAction)sourceSelected:(id)sender
 {
     [formatSelect removeAllItems];
+    [inputView setImage: nil];
+    
+    selectedImage  = nil;
+    selectedDevice = nil;
     
     NSMenuItem *ditem = [deviceSelect selectedItem];
-    device = ditem.representedObject;
     
-    if( !ditem || !device )
+    if( [ditem.representedObject isKindOfClass: [AVCaptureDevice class]] )
+    {
+        selectedDevice = ditem.representedObject;
+    }
+    
+    if( selectedDevice )
+    {
+        [formatSelect setEnabled:YES];
+        
+        for ( AVCaptureDeviceFormat *format in selectedDevice.formats )
+        {
+            NSString *title = format.description;
+            [formatSelect addItemWithTitle:title];
+            NSMenuItem *fitem = [formatSelect itemWithTitle:title];
+            [fitem setRepresentedObject:format];
+        }
+        
+        for ( NSMenuItem *fitem in formatSelect.menu.itemArray )
+        {
+            AVCaptureDeviceFormat *format = [fitem representedObject];
+            AVCaptureDeviceFormat *active = selectedDevice.activeFormat;
+            if (format == active)
+            {
+                [formatSelect selectItem:fitem];
+                [self formatSelected:formatSelect];
+                break;
+            }
+        }
+        
+        [autoWBCheck setEnabled:[selectedDevice isWhiteBalanceModeSupported:AVCaptureWhiteBalanceModeContinuousAutoWhiteBalance]];
+        [adjustWBButton setEnabled:[selectedDevice isWhiteBalanceModeSupported:AVCaptureWhiteBalanceModeAutoWhiteBalance]];
+        if ( [autoWBCheck isEnabled] )
+        {
+            [self autoWBChanged:autoWBCheck];
+        }
+    }
+    else
     {
         [formatSelect setEnabled:NO];
         [formatSelect addItemWithTitle:@"No device selected"];
         [adjustWBButton setEnabled:NO];
-        return;
-    }
-    
-    [formatSelect setEnabled:YES];
-    
-    for ( AVCaptureDeviceFormat *format in device.formats )
-    {
-        NSString *title = format.description;
-        [formatSelect addItemWithTitle:title];
-        NSMenuItem *fitem = [formatSelect itemWithTitle:title];
-        [fitem setRepresentedObject:format];
-    }
-    
-    for ( NSMenuItem *fitem in formatSelect.menu.itemArray )
-    {
-        AVCaptureDeviceFormat *format = [fitem representedObject];
-        AVCaptureDeviceFormat *active = device.activeFormat;
-        if (format == active)
+        
+        [autoWBCheck setEnabled: NO];
+        [adjustWBButton setEnabled:NO];
+
+        if( [ditem.representedObject isKindOfClass: [NSOpenPanel class]] )
         {
-            [formatSelect selectItem:fitem];
-            [self formatSelected:formatSelect];
-            break;
+            NSOpenPanel *openPanel = ditem.representedObject;
+            [openPanel setAllowedFileTypes: @[@"jpg"]];
+            if ( [openPanel runModal] == NSOKButton )
+            {
+                NSURL *fileURL = [[openPanel URLs] firstObject];
+                selectedImage = [[NSImage alloc] initWithContentsOfURL:fileURL];
+                
+                [inputView setImage:selectedImage];
+            }
         }
     }
     
-    [autoWBCheck setEnabled:[device isWhiteBalanceModeSupported:AVCaptureWhiteBalanceModeContinuousAutoWhiteBalance]];
-    [adjustWBButton setEnabled:[device isWhiteBalanceModeSupported:AVCaptureWhiteBalanceModeAutoWhiteBalance]];
-    if ( [autoWBCheck isEnabled])
-    {
-        [self autoWBChanged:autoWBCheck];
-    }
 }
 
 
