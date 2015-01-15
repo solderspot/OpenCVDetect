@@ -66,15 +66,15 @@
 		F801721119E24423003791CF /* OpenCVDetect */ = {
 			isa = PBXGroup;
 			children = (
-				F8A0022719F2277F0027840A /* OpenCVDetect.h */,
-				F8A0022819F2277F0027840A /* OpenCVDetect.mm */,
 				F801721619E24423003791CF /* AppDelegate.h */,
 				F801721719E24423003791CF /* AppDelegate.m */,
+				F8A0022719F2277F0027840A /* OpenCVDetect.h */,
+				F8A0022819F2277F0027840A /* OpenCVDetect.mm */,
+				F801723B19E29355003791CF /* NSImageOpenCV.h */,
+				F801723919E2932B003791CF /* NSImageOpenCV.mm */,
 				F801721919E24423003791CF /* Images.xcassets */,
 				F801721B19E24423003791CF /* MainMenu.xib */,
 				F801721219E24423003791CF /* Supporting Files */,
-				F801723919E2932B003791CF /* NSImageOpenCV.mm */,
-				F801723B19E29355003791CF /* NSImageOpenCV.h */,
 			);
 			path = OpenCVDetect;
 			sourceTree = "<group>";
