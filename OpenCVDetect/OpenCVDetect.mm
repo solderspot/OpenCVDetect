@@ -195,6 +195,7 @@
     [inputLabel setStringValue:[NSString stringWithFormat:@"%d x %d @ %.02f", matToProcess.cols, matToProcess.rows, captureHz]];
     
 
+    
     // start processing input
 
     
@@ -452,7 +453,8 @@
     hueMax /= 2;
     
     
-    if( selectedImage && isProcessing ){
+    if( selectedImage && isProcessing )
+    {
         [self processMat];
     }
 }
@@ -465,7 +467,8 @@
 {
     enableColorThresholding = [colorThresholdingCheck state];
     
-    if( selectedImage && isProcessing ){
+    if( selectedImage && isProcessing )
+    {
         [self processMat];
     }
 }
@@ -478,7 +481,8 @@
 {
     enableNoiseReduction = [noiseReductionCheck state];
     
-    if( selectedImage && isProcessing ){
+    if( selectedImage && isProcessing )
+    {
         [self processMat];
     }
 }
@@ -491,7 +495,8 @@
 {
     enableTargetsOnly = [targetsOnlyCheck state];
     
-    if( selectedImage && isProcessing ){
+    if( selectedImage && isProcessing )
+    {
         [self processMat];
     }
 }
@@ -526,7 +531,8 @@
 {
     enableInputScaling = [scaleInputCheck state];
     
-    if( selectedImage && isProcessing ){
+    if( selectedImage && isProcessing )
+    {
         [self processMat];
     }
 }
@@ -541,7 +547,8 @@
     scaleInputValue = ((float)val)/100.0f;
     [scaleInputLabel setStringValue:[NSString stringWithFormat:@"%d %%", val]];
     
-    if( selectedImage && isProcessing ){
+    if( selectedImage && isProcessing )
+    {
         [self processMat];
     }
 }
@@ -554,7 +561,8 @@
 {
     enableRadiusCulling = [cullRadiusCheck state];
     
-    if( selectedImage && isProcessing ){
+    if( selectedImage && isProcessing )
+    {
         [self processMat];
     }
 }
@@ -569,7 +577,8 @@
     cullRadiusRatio = ((float)val)/100.0f;
     [cullRadiusLabel setStringValue:[NSString stringWithFormat:@"%d %%", val]];
     
-    if( selectedImage && isProcessing ){
+    if( selectedImage && isProcessing )
+    {
         [self processMat];
     }
 }
@@ -622,7 +631,8 @@
     
     [satMinLabel setStringValue:[NSString stringWithFormat:@"%d", satMinValue]];
     
-    if( selectedImage && isProcessing ){
+    if( selectedImage && isProcessing )
+    {
         [self processMat];
     }
 }
@@ -642,7 +652,8 @@
     }
     [satMaxLabel setStringValue:[NSString stringWithFormat:@"%d", satMaxValue]];
     
-    if( selectedImage && isProcessing ){
+    if( selectedImage && isProcessing )
+    {
         [self processMat];
     }
 }
@@ -663,7 +674,8 @@
     
     [volMinLabel setStringValue:[NSString stringWithFormat:@"%d", volMinValue]];
     
-    if( selectedImage && isProcessing ){
+    if( selectedImage && isProcessing )
+    {
         [self processMat];
     }
 }
@@ -683,7 +695,8 @@
     }
     [volMaxLabel setStringValue:[NSString stringWithFormat:@"%d", volMaxValue]];
     
-    if( selectedImage && isProcessing ){
+    if( selectedImage && isProcessing )
+    {
         [self processMat];
     }
 }
@@ -701,7 +714,8 @@
         [selectedDevice unlockForConfiguration];
     }
     
-    if( selectedImage && isProcessing ){
+    if( selectedImage && isProcessing )
+    {
         [self processMat];
     }
 }
@@ -725,7 +739,8 @@
         selectedDevice = ditem.representedObject;
     }
     
-    if( selectedDevice ){
+    if( selectedDevice )
+    {
         [formatSelect setEnabled:YES];
         
         for ( AVCaptureDeviceFormat *format in selectedDevice.formats )
@@ -764,7 +779,8 @@
         [autoWBCheck setEnabled: NO];
         [adjustWBButton setEnabled:NO];
 
-        if( [ditem.representedObject isKindOfClass: [NSOpenPanel class]] ){
+        if( [ditem.representedObject isKindOfClass: [NSOpenPanel class]] )
+        {
             NSOpenPanel *openPanel = ditem.representedObject;
             [openPanel setAllowedFileTypes: @[@"jpg"]];
             if ( [openPanel runModal] == NSOKButton )
