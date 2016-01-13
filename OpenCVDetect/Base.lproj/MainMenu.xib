@@ -222,7 +222,7 @@
                             </menu>
                         </popUpButtonCell>
                         <connections>
-                            <action selector="deviceSelected:" target="qvi-3r-KZU" id="3wG-9z-mo4"/>
+                            <action selector="sourceSelected:" target="qvi-3r-KZU" id="3wG-9z-mo4"/>
                         </connections>
                     </popUpButton>
                     <box autoresizesSubviews="NO" fixedFrame="YES" title="Processed Image" borderType="line" translatesAutoresizingMaskIntoConstraints="NO" id="SjH-2T-MmS">
