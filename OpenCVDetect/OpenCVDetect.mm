@@ -784,7 +784,7 @@
         if( [ditem.representedObject isKindOfClass: [NSOpenPanel class]] )
         {
             NSOpenPanel *openPanel = ditem.representedObject;
-            [openPanel setAllowedFileTypes: @[@"jpg"]];
+            [openPanel setAllowedFileTypes: @[@"jpg", @"png"]];
             if ( [openPanel runModal] == NSOKButton )
             {
                 NSURL *fileURL = [[openPanel URLs] firstObject];
