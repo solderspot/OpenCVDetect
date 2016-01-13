@@ -186,8 +186,10 @@
     NSTimeInterval delta = (start - lastProcessTime);
     
     cv::Mat matToProcess(currentMat);
-    cv::cvtColor(currentMat, matToProcess, CV_BGR2RGB);
-    
+    if( !selectedImage )
+    {
+        cv::cvtColor(currentMat, matToProcess, CV_BGR2RGB);
+    }
     processHz = delta != 0 ? 1.0 / delta : 0 ;
     lastProcessTime = start;
 
